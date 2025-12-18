@@ -246,7 +246,7 @@ echo "- Comprueba que Docker y el container están arriba:"
 echo "    qm terminal ${VMID} -> sudo docker ps"
 echo "- Si expusiste wireguard-ui en localhost:5000 dentro de la VM, configura tu nginx (máquina pública) como reverse-proxy hacia http://<IP_VM>:5000 y asegúrate de que el puerto UDP 51820 esté dirigido hacia la IP de la VM."
 echo
-info "Recordatorio NAT/iptables (ejemplo si nginx-host tiene IP pública y debe reenviar UDP 51820 a la VM):"
+echo "Recordatorio NAT/iptables (ejemplo si nginx-host tiene IP pública y debe reenviar UDP 51820 a la VM):"
 echo "  sudo sysctl -w net.ipv4.ip_forward=1"
 echo "  sudo iptables -t nat -A PREROUTING -p udp --dport 51820 -j DNAT --to-destination <IP_VM>:51820"
 echo "  sudo iptables -A FORWARD -p udp -d <IP_VM> --dport 51820 -j ACCEPT"
