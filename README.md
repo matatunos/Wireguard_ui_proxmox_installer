@@ -25,18 +25,104 @@ Limitaciones / notas:
 - No toca la máquina nginx que ya tienes; tendrás que configurar allí el reverse-proxy / DNAT para UDP 51820 hacia la VM (si tu nginx es el gateway) — el script recuerda esto al final.
 - Si quieres HTTPS para la UI, usa tu nginx para proxear la UI y obtener certificados con certbot (ya lo hablamos antes).
 
-Uso rápido (en Proxmox host, como root):
-1. Copia `create-vm-wireguard.sh` al host (por ejemplo `/root/create-vm-wireguard.sh`) y dale permisos de ejecución:
-   sudo chmod +x /root/create-vm-wireguard.sh
-2. Ejecuta:
-   sudo /root/create-vm-wireguard.sh
-3. Sigue las preguntas en pantalla.
+---
+
+## Cómo se instala (instrucciones)
+
+Sigue estos pasos recomendados para instalar de forma segura el instalador y crear la VM en Proxmox.
+
+1) Descarga y revisa (forma segura — recomendado)
+
+- Descargar el script a tu máquina y revisarlo antes de ejecutar:
+
+  curl -fsSL -o create-vm-wireguard.sh https://raw.githubusercontent.com/matatunos/Wireguard_ui_proxmox_installer/main/create-vm-wireguard.sh
+  less create-vm-wireguard.sh
+
+- Comprobar checksum (si publicas/consigues el SHA256 desde el repo):
+
+  sha256sum create-vm-wireguard.sh
+
+- Ejecutar solo tras revisarlo:
+
+  chmod +x create-vm-wireguard.sh
+  sudo ./create-vm-wireguard.sh
+
+2) One-liner (NO recomendado sin inspección)
+
+- Si confías en el contenido y quieres el método rápido:
+
+  sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/matatunos/Wireguard_ui_proxmox_installer/main/create-vm-wireguard.sh)"
+
+  Nota: es más seguro descargar y revisar el script antes de ejecutarlo.
+
+3) Opción usando git (recomendada si vas a mantener una copia local)
+
+  git clone https://github.com/matatunos/Wireguard_ui_proxmox_installer.git
+  cd Wireguard_ui_proxmox_installer
+  less create-vm-wireguard.sh   # revisa el contenido
+  sha256sum create-vm-wireguard.sh
+  sudo bash create-vm-wireguard.sh
+
+4) Prerrequisitos
+
+- Ejecutar como root (o usar sudo cuando se indique).
+- Proxmox VE instalado y accesible.
+- Comando `qm` disponible en el host Proxmox.
+- Espacio de almacenamiento suficiente y conexión a Internet para descargar la imagen cloud.
+
+5) Red / NAT / Reverse proxy (recordatorio)
+
+- Asegúrate de que el puerto UDP 51820 (WireGuard) llegue a la VM: crea el DNAT/port-forward correspondiente en el router o en tu máquina pública.
+- La UI web se sirve por defecto en el contenedor en el puerto 5000 (wireguard-ui) y está mapeada a localhost en la VM. Usa tu nginx público como reverse-proxy para exponerla con HTTPS.
+
+Fragmento de ejemplo nginx (proxy + Let's Encrypt):
+
+    server {
+        listen 80;
+        server_name TU_FQDN;
+        location /.well-known/acme-challenge/ { root /var/www/certbot; }
+        location / { return 301 https://$host$request_uri; }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name TU_FQDN;
+
+        ssl_certificate /etc/letsencrypt/live/TU_FQDN/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/TU_FQDN/privkey.pem;
+        include /etc/letsencrypt/options-ssl-nginx.conf;
+
+        location / {
+            proxy_pass http://IP_VM:5000/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+6) Comandos útiles para verificar la URL RAW
+
+- Ver el encabezado HTTP del raw URL:
+
+  curl -I https://raw.githubusercontent.com/matatunos/Wireguard_ui_proxmox_installer/main/create-vm-wireguard.sh
+
+- Descargar y abrir para revisión:
+
+  curl -fsSL -o create-vm-wireguard.sh https://raw.githubusercontent.com/matatunos/Wireguard_ui_proxmox_installer/main/create-vm-wireguard.sh && less create-vm-wireguard.sh
+
+7) Buenas prácticas de seguridad
+
+- Nunca ejecutes un script `curl | bash` sin revisarlo.
+- Comprueba la integridad mediante SHA256 o firmas si se publican.
+- Mantén tu Proxmox y el host actualizados.
+- Limita la exposición de la UI con autenticación básica o accésala solo por VPN/SSH-tunnel si es posible.
+- Haz backups del volumen donde se almacenarían las claves de WireGuard (./wireguard en el contenedor).
+- Usa puertos no estándar si tu ISP bloquea los puertos habituales.
+
+---
 
 Descargo de responsabilidad:
-Este software se proporciona "tal cual", sin garantías de ningún tipo, ni expresas ni implícitas, incluidas, entre otras, garantías de comerciabilidad, idoneidad para un propósito particular y no infracción. El autor no será responsable de ningún daño directo, indirecto, incidental, especial, ejemplar o consecuente (incluyendo, entre otros, la adquisición de bienes o servicios sustitutos; pérdida de uso, datos o beneficios; o interrupción de la actividad empresarial) que surja de cualquier manera del uso de este software, incluso si se ha advertido de la posibilidad de tales daños.
+Este software se proporciona "tal cual", sin garantías de ningún tipo, ni expresas ni implícitas, incluidas, entre otras, garantías de comerciabilidad, idoneidad para un propósito particular y no infracción. El autor no será responsable de ningún daño directo, indirecto, incidental, especial, ejemplar o consecuente que surja del uso de este software.
 
-Licencia:
-Este proyecto se publica bajo la licencia GNU General Public License v3.0 (GPL-3.0). Consulta el archivo LICENSE para el texto completo.
-
-Contribuciones y mejoras:
-Si quieres que adapte el script (por ejemplo, usar Ubuntu 24.04, cambiar el usuario, agregar opciones avanzadas de disco o red), abre un issue o PR en este repositorio.
+Licencia: GPL-3.0
